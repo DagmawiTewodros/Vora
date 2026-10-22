@@ -7,9 +7,9 @@
   --brand: #7a4b2a;
   --brand-ink: #ffffff;
   --brand-soft: #f3e7dc;
-  --ok: #2f7d4f;
+  --ok: #276b43;
   --ok-soft: #dff1e5;
-  --warn: #a8641a;
+  --warn: #8a5114;
   --warn-soft: #fbecd6;
   --bad: #b3362d;
   --bad-soft: #f9dedb;
@@ -138,7 +138,7 @@ tfoot td { font-weight: 600; border-top: 2px solid var(--ink); }
 .badge { display: inline-block; padding: 0.1rem 0.55rem; border-radius: 99px; font-size: 0.75rem; background: var(--brand-soft); color: var(--brand); margin-left: 0.3rem; white-space: nowrap; }
 .badge-confirmed, .badge-open, .badge-received, .badge-ordered, .badge-new { background: var(--info-soft); color: var(--info); }
 .badge-checked_in, .badge-clean, .badge-hk-clean, .badge-done, .badge-ready, .badge-served, .badge-delivered, .badge-closed, .badge-settled { background: var(--ok-soft); color: var(--ok); }
-.badge-inspected, .badge-hk-inspected { background: #d9efe9; color: #1f6f5c; }
+.badge-inspected, .badge-hk-inspected { background: #d9efe9; color: #1a5e4e; }
 .badge-tentative, .badge-in_progress, .badge-in_process, .badge-sent, .badge-draft, .badge-deposit, .badge-vip { background: var(--warn-soft); color: var(--warn); }
 .badge-cancelled, .badge-no_show, .badge-dirty, .badge-hk-dirty, .badge-void, .badge-refund, .badge-out_of_order { background: var(--bad-soft); color: var(--bad); }
 .badge-checked_out, .badge-vacant { background: #eee; color: #555; }
@@ -185,7 +185,7 @@ tfoot td { font-weight: 600; border-top: 2px solid var(--ink); }
 .legend { display: flex; gap: 0.5rem; align-items: center; font-size: 0.85rem; flex-wrap: wrap; }
 .hk-dot { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-left: 0.5rem; }
 .hk-dot.hk-clean { background: var(--ok); }
-.hk-dot.hk-inspected { background: #1f6f5c; }
+.hk-dot.hk-inspected { background: #1a5e4e; }
 .hk-dot.hk-dirty { background: var(--bad); }
 .rack { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 0.5rem; }
 .rack-room { flex-direction: column; align-items: flex-start; gap: 0.1rem; padding: 0.6rem; border-left: 5px solid var(--line); text-align: left; min-height: 82px; }
@@ -193,7 +193,7 @@ tfoot td { font-weight: 600; border-top: 2px solid var(--ink); }
 .rack-room span { font-size: 0.75rem; color: var(--muted); }
 .rack-room small { font-size: 0.75rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
 .rack-room.hk-clean { border-left-color: var(--ok); }
-.rack-room.hk-inspected { border-left-color: #1f6f5c; }
+.rack-room.hk-inspected { border-left-color: #1a5e4e; }
 .rack-room.hk-dirty { border-left-color: var(--bad); }
 .rack-room.st-occupied { background: var(--info-soft); }
 .rack-room.st-out_of_order { background: repeating-linear-gradient(45deg, #fff, #fff 6px, #f3e7dc 6px, #f3e7dc 12px); }
@@ -244,6 +244,11 @@ tfoot td { font-weight: 600; border-top: 2px solid var(--ink); }
 .invoice-payments p { margin: 0.2rem 0; }
 .invoice footer { margin-top: 2rem; color: var(--muted); font-size: 0.85rem; text-align: center; }
 .invoice-tools { display: flex; justify-content: flex-end; margin-bottom: 1rem; }
+
+@media (prefers-reduced-motion: reduce) {
+  /* The toast only fades (no movement) and its animation end clears it, so it keeps its timing. */
+  *:not(.notice), *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
 
 @media print {
   .no-print, .sidebar, .topbar, .actions, .filters, .modal-actions { display: none !important; }
