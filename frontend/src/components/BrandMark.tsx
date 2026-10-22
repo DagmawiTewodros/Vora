@@ -1,21 +1,9 @@
-import { useState } from "react";
+import logo from "../assets/logo.svg?raw";
 
-// The hotel logo lives at public/brand/logo.svg or public/brand/logo.png.
-// Until one is added, the hotel name is set in type as a wordmark.
-const SOURCES = ["/brand/logo.svg", "/brand/logo.png"];
-
+// Vector trace of the Vora Addis logo. It is inlined so it takes the colour
+// of its surroundings (gold on the dark sidebar, a faint tint as a watermark).
 export default function BrandMark({ className = "" }: { className?: string }) {
-  const [index, setIndex] = useState(0);
-  if (index < SOURCES.length) {
-    return <img className={`brand-logo ${className}`} src={SOURCES[index]} alt="Vora Addis Hotel" onError={() => setIndex(index + 1)} />;
-  }
-  return (
-    <div className={`wordmark ${className}`} aria-label="Vora Addis Hotel">
-      <span className="wordmark-name">VORA</span>
-      <span className="wordmark-rule"><i />ADDIS<i /></span>
-      <span className="wordmark-sub">HOTEL</span>
-    </div>
-  );
+  return <span className={`brand-logo ${className}`} role="img" aria-label="Vora Addis Hotel" dangerouslySetInnerHTML={{ __html: logo }} />;
 }
 
 /** The logo, very faint and centred behind the page content. */
