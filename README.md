@@ -73,6 +73,8 @@ Demo logins (from `seed_demo`; change them before real use):
 
 Room types, room numbers, prices and the menu in the seed are placeholders until the hotel confirms the real figures.
 
+**Hotel logo:** put it at `frontend/public/brand/logo.svg` (or `logo.png`, ideally with a transparent background). It then appears in the sidebar, on the sign-in screen and as the faint watermark behind every page. Until a file is there, the hotel name is shown as a typeset wordmark.
+
 ## Tests
 
 ```bash

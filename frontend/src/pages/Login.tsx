@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { homeFor } from "../components/Layout";
+import BrandMark from "../components/BrandMark";
 import { ErrorBox, Field } from "../components/ui";
 import { post } from "../lib/api";
 import { useAuth } from "../lib/auth";
@@ -33,13 +34,11 @@ export default function Login() {
 
   return (
     <div className="login">
+      <div className="login-watermark" aria-hidden="true"><BrandMark /></div>
       <form className="card login-card" onSubmit={submit}>
-        <div className="brand big">
-          <span className="logo">V</span>
-          <div>
-            <strong>Vora Addis Hotel</strong>
-            <small>Staff sign-in</small>
-          </div>
+        <div className="login-brand">
+          <BrandMark />
+          <p>Staff sign-in</p>
         </div>
         <div className="tabs">
           <button type="button" className={mode === "pin" ? "active" : ""} onClick={() => setMode("pin")}>PIN</button>

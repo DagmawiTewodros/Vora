@@ -6,6 +6,7 @@ import { shortDate } from "../lib/format";
 import { useOnline } from "../lib/hooks";
 import { useI18n } from "../lib/i18n";
 import { queued, syncQueued } from "../lib/offline";
+import BrandMark, { Watermark } from "./BrandMark";
 
 export const NAV = [
   { to: "/", label: "Dashboard", roles: [] as string[] },
@@ -57,11 +58,8 @@ export default function Layout() {
     <div className="shell">
       <aside className={`sidebar ${menuOpen ? "open" : ""}`}>
         <div className="brand">
-          <span className="logo">V</span>
-          <div>
-            <strong>Vora Addis</strong>
-            <small>Hotel Management</small>
-          </div>
+          <BrandMark className="brand-small" />
+          <small>Hotel Management</small>
         </div>
         <nav onClick={() => setMenuOpen(false)}>
           {items.map((n) => (
@@ -107,6 +105,7 @@ export default function Layout() {
           </span>
         </header>
         <main className="content">
+          <Watermark />
           <Outlet />
         </main>
       </div>
