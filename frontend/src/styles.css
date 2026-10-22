@@ -123,8 +123,10 @@ legend { padding: 0 0.5rem; color: var(--gold-deep); font-family: var(--serif); 
 /* The logo sits centred behind everything; cards are slightly translucent
    so it reads through them like an embossed mark instead of being hidden. */
 .watermark { position: fixed; top: 56px; bottom: 0; left: 250px; right: 0; display: grid; place-items: center; pointer-events: none; z-index: 0; }
+/* Positioned without a z-index: paints above the watermark (later in the DOM)
+   but creates no stacking context, so dialogs still cover the sidebar. */
+.content > .page { position: relative; }
 .watermark .brand-logo { width: min(64%, 860px); color: var(--gold-deep); opacity: 0.075; }
-.content > :not(.watermark) { position: relative; z-index: 1; }
 
 /* Shell */
 .shell { display: flex; min-height: 100vh; }
