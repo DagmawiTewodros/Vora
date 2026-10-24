@@ -1,10 +1,23 @@
+import { CheckCircle2, ShieldCheck, Sparkles, User, Wrench } from "lucide-react";
 import { useState } from "react";
 import { Badge, ErrorBox, Modal } from "../components/ui";
 import { post } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { dateTime } from "../lib/format";
 import { useAction, useApi } from "../lib/hooks";
+import { useAsk } from "../lib/feedback";
 import { useI18n } from "../lib/i18n";
+
+/** Housekeeping state as icon + word, so it never depends on colour alone. */
+export function HkStatus({ status, label }: { status: string; label?: string }) {
+  const Icon = status === "dirty" ? Sparkles : status === "inspected" ? ShieldCheck : CheckCircle2;
+  return (
+    <span className={`hk-status hk-${status}`}>
+      <Icon size={13} strokeWidth={2} aria-hidden="true" />
+      {label ?? status[0].toUpperCase() + status.slice(1)}
+    </span>
+  );
+}
 
 export default function Rooms() {
   const { t } = useI18n();
@@ -14,6 +27,7 @@ export default function Rooms() {
   const [room, setRoom] = useState<any | null>(null);
   const [floor, setFloor] = useState<string>("all");
   const action = useAction();
+  const ask = useAsk();
 
   const rooms: any[] = board.data?.rooms ?? [];
   const floors = Array.from(new Set(rooms.map((r) => r.floor))).sort();
@@ -41,10 +55,17 @@ export default function Rooms() {
       </div>
       <div className="rack">
         {shown.map((r) => (
-          <button key={r.id} className={`rack-room hk-${r.housekeeping_status} st-${r.status}`} onClick={() => setRoom(r)}>
-            <strong>{r.number}</strong>
-            <span>{r.room_type_code}</span>
-            <small>{r.status === "occupied" ? r.current_guest : t(r.status === "out_of_order" ? "Out of order" : "Vacant")}</small>
+          <button key={r.id} className={`rack-room hk-${r.housekeeping_status} st-${r.status}`} onClick={() => setRoom(r)}
+            aria-label={`Room ${r.number}, ${r.room_type_name}, ${r.housekeeping_status}, ${r.status === "occupied" ? `occupied by ${r.current_guest}` : r.status.replace(/_/g, " ")}`}>
+            <span className="rack-top">
+              <strong>{r.number}</strong>
+              <HkStatus status={r.housekeeping_status} label={t(r.housekeeping_status[0].toUpperCase() + r.housekeeping_status.slice(1))} />
+            </span>
+            <span className="rack-type">{r.room_type_code}</span>
+            <small className="rack-guest">
+              {r.status === "occupied" ? <><User size={12} aria-hidden="true" /> {r.current_guest}</>
+                : r.status === "out_of_order" ? <><Wrench size={12} aria-hidden="true" /> {t("Out of order")}</> : t("Vacant")}
+            </small>
           </button>
         ))}
       </div>
@@ -80,7 +101,10 @@ export default function Rooms() {
               </button>
             ))}
             {user?.is_manager && room.status === "vacant" && (
-              <button className="danger" onClick={() => { const reason = window.prompt("Reason (e.g. plumbing repair)"); if (reason) act(() => post(`/rooms/${room.id}/out-of-order/`, { reason })); }}>
+              <button className="danger" onClick={async () => {
+                const reason = await ask({ title: `Take room ${room.number} out of order?`, message: "The room can't be sold or assigned until it is returned to service.", input: { label: "Reason", required: true, hint: "For example: plumbing repair" }, confirmLabel: "Out of order", danger: true });
+                if (reason) act(() => post(`/rooms/${room.id}/out-of-order/`, { reason }));
+              }}>
                 Out of order
               </button>
             )}

@@ -1,4 +1,6 @@
 import { useEffect } from "react";
+import { ChefHat } from "lucide-react";
+import { Empty } from "../components/ui";
 import { post } from "../lib/api";
 import { dateTime } from "../lib/format";
 import { useApi } from "../lib/hooks";
@@ -32,7 +34,7 @@ export default function Kitchen() {
             ))}
           </div>
         ))}
-        {tickets.data?.length === 0 && <p className="empty">No tickets waiting.</p>}
+        {tickets.data?.length === 0 && <Empty icon={<ChefHat size={28} />}>No tickets waiting. New orders appear here automatically.</Empty>}
       </div>
     </div>
   );

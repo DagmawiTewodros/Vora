@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { Badge, ErrorBox, Field, Modal } from "../components/ui";
+import { ChefHat, Minus, Plus, ShoppingBag, Trash2 } from "lucide-react";
+import { Badge, Empty, ErrorBox, Field, Modal } from "../components/ui";
 import ShiftBar from "../components/ShiftBar";
 import { api, post } from "../lib/api";
 import { birr } from "../lib/format";
+import { useToast } from "../lib/feedback";
 import { useAction, useApi, useOnline } from "../lib/hooks";
 import { useI18n } from "../lib/i18n";
 import { enqueue, queued, syncQueued, uuid } from "../lib/offline";
@@ -23,7 +25,7 @@ export default function Pos() {
   const [lines, setLines] = useState<Line[]>([]);
   const [table, setTable] = useState("");
   const [settling, setSettling] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
+  const toast = useToast();
   const action = useAction();
 
   useEffect(() => {
@@ -59,13 +61,13 @@ export default function Pos() {
   const send = () => action.run(async () => {
     const current = await save();
     setOrder(await post(`/pos/orders/${current.id}/send/`));
-    setNotice("Sent to kitchen");
+    toast("Sent to kitchen");
     openOrders.reload();
   });
 
   const syncNow = () => action.run(async () => {
     const r = await syncQueued();
-    setNotice(`Synced ${r.sent} offline order(s)${r.failed ? `, ${r.failed} need attention` : ""}`);
+    toast(`Synced ${r.sent} offline order(s)${r.failed ? `, ${r.failed} need attention` : ""}`);
   });
 
   return (
@@ -82,7 +84,6 @@ export default function Pos() {
       {online && <ShiftBar />}
       {!online && <div className="warn-box">Offline: orders are saved on this tablet and sent automatically when the connection returns. Room posting is checked on sync.</div>}
       <ErrorBox error={action.error || menu.error} />
-      {notice && <div className="notice" onAnimationEnd={() => setNotice(null)}>{notice}</div>}
 
       <div className="pos-grid">
         <section>
@@ -117,6 +118,7 @@ export default function Pos() {
             <Field label="Table"><input value={table} onChange={(e) => setTable(e.target.value)} disabled={!!order} placeholder="e.g. T4" /></Field>
             {order && <span className="muted">#{order.number}</span>}
           </div>
+          {!order && !lines.length && <Empty icon={<ShoppingBag size={26} />}>Tap menu items to start an order.</Empty>}
           <ul>
             {(order?.items ?? []).map((i: any) => (
               <li key={i.id} className={i.is_void ? "void" : ""}>
@@ -127,20 +129,20 @@ export default function Pos() {
             ))}
             {lines.map((l, idx) => (
               <li key={`n${idx}`} className="new-line">
-                <span>
-                  <button className="ghost" onClick={() => setLines(lines.map((x, j) => (j === idx ? { ...x, quantity: Math.max(1, x.quantity - 1) } : x)))}>−</button>
-                  {l.quantity}
-                  <button className="ghost" onClick={() => setLines(lines.map((x, j) => (j === idx ? { ...x, quantity: x.quantity + 1 } : x)))}>+</button>
-                  {l.name}
+                <span className="line-name">{l.name}</span>
+                <span className="line-total">{birr(Number(l.price) * l.quantity)}</span>
+                <span className="qty">
+                  <button className="icon-btn" disabled={l.quantity <= 1} onClick={() => setLines(lines.map((x, j) => (j === idx ? { ...x, quantity: Math.max(1, x.quantity - 1) } : x)))} aria-label={`One less ${l.name}`}><Minus size={16} aria-hidden="true" /></button>
+                  <span className="qty-n" aria-live="polite">{l.quantity}</span>
+                  <button className="icon-btn" onClick={() => setLines(lines.map((x, j) => (j === idx ? { ...x, quantity: x.quantity + 1 } : x)))} aria-label={`One more ${l.name}`}><Plus size={16} aria-hidden="true" /></button>
                 </span>
-                <button className="ghost" onClick={() => setLines(lines.filter((_, j) => j !== idx))} aria-label="Remove">✕</button>
-                <span>{birr(Number(l.price) * l.quantity)}</span>
+                <button className="icon-btn" onClick={() => setLines(lines.filter((_, j) => j !== idx))} aria-label={`Remove ${l.name}`}><Trash2 size={16} aria-hidden="true" /></button>
               </li>
             ))}
           </ul>
           <div className="ticket-total"><span>Subtotal (before VAT &amp; service)</span><strong>{birr(total)}</strong></div>
           <div className="ticket-actions">
-            <button disabled={!online || action.busy || (!lines.length && !order)} onClick={send}>{t("Send to kitchen")}</button>
+            <button disabled={!online || action.busy || (!lines.length && !order)} onClick={send}><ChefHat size={18} aria-hidden="true" />{t("Send to kitchen")}</button>
             <button className="primary" disabled={action.busy || (!lines.length && !order?.items?.length)} onClick={() => setSettling(true)}>{t("Pay")} / {t("Post to room")}</button>
             {(order || lines.length > 0) && <button className="ghost" onClick={reset}>Clear</button>}
           </div>
@@ -155,11 +157,11 @@ export default function Pos() {
           onSettle={(settlement) => action.run(async () => {
             if (!online) {
               enqueue({ client_uuid: uuid(), outlet: outlet!, table, covers: 1, items: lines.map((l) => ({ menu_item: l.menu_item, quantity: l.quantity, notes: l.notes })), settlement, created_at: new Date().toISOString() });
-              setNotice("Saved offline");
+              toast("Saved offline");
             } else {
               const current = await save();
               await post(`/pos/orders/${current.id}/settle/`, settlement);
-              setNotice(settlement.type === "room" ? `Posted to room ${settlement.room}` : "Paid");
+              toast(settlement.type === "room" ? `Posted to room ${settlement.room}` : "Paid");
             }
             setSettling(false);
             reset();

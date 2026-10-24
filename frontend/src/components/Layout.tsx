@@ -1,5 +1,9 @@
-import { useEffect, useState } from "react";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import {
+  BedDouble, BarChart3, BookOpenCheck, ChefHat, ConciergeBell, LayoutDashboard, LogOut, Menu, Package, Receipt,
+  Settings as SettingsIcon, Shirt, UtensilsCrossed, Wifi, WifiOff, X, type LucideIcon,
+} from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
 import { canSee, useAuth } from "../lib/auth";
 import { shortDate } from "../lib/format";
@@ -8,18 +12,18 @@ import { useI18n } from "../lib/i18n";
 import { queued, syncQueued } from "../lib/offline";
 import BrandMark, { Watermark } from "./BrandMark";
 
-export const NAV = [
-  { to: "/", label: "Dashboard", roles: [] as string[] },
-  { to: "/front-desk", label: "Front desk", roles: ["front_desk", "cashier"] },
-  { to: "/reservations", label: "Reservations", roles: ["front_desk", "sales", "revenue"] },
-  { to: "/rooms", label: "Housekeeping", roles: ["housekeeping", "front_desk"] },
-  { to: "/folios", label: "Billing", roles: ["front_desk", "cashier"] },
-  { to: "/pos", label: "POS", roles: ["waiter", "cashier"] },
-  { to: "/kitchen", label: "Kitchen", roles: ["waiter"] },
-  { to: "/laundry", label: "Laundry", roles: ["laundry", "front_desk", "housekeeping"] },
-  { to: "/inventory", label: "Inventory", roles: ["store_keeper"] },
-  { to: "/reports", label: "Reports", roles: [] },
-  { to: "/settings", label: "Settings", roles: ["revenue", "cashier"] },
+export const NAV: { to: string; label: string; roles: string[]; icon: LucideIcon }[] = [
+  { to: "/", label: "Dashboard", roles: [], icon: LayoutDashboard },
+  { to: "/front-desk", label: "Front desk", roles: ["front_desk", "cashier"], icon: ConciergeBell },
+  { to: "/reservations", label: "Reservations", roles: ["front_desk", "sales", "revenue"], icon: BookOpenCheck },
+  { to: "/rooms", label: "Housekeeping", roles: ["housekeeping", "front_desk"], icon: BedDouble },
+  { to: "/folios", label: "Billing", roles: ["front_desk", "cashier"], icon: Receipt },
+  { to: "/pos", label: "POS", roles: ["waiter", "cashier"], icon: UtensilsCrossed },
+  { to: "/kitchen", label: "Kitchen", roles: ["waiter"], icon: ChefHat },
+  { to: "/laundry", label: "Laundry", roles: ["laundry", "front_desk", "housekeeping"], icon: Shirt },
+  { to: "/inventory", label: "Inventory", roles: ["store_keeper"], icon: Package },
+  { to: "/reports", label: "Reports", roles: [], icon: BarChart3 },
+  { to: "/settings", label: "Settings", roles: ["revenue", "cashier"], icon: SettingsIcon },
 ];
 
 export function homeFor(role: string, isManager: boolean) {
@@ -36,6 +40,25 @@ export default function Layout() {
   const [businessDate, setBusinessDate] = useState<string | null>(null);
   const [pending, setPending] = useState(queued().length);
   const [menuOpen, setMenuOpen] = useState(false);
+  const location = useLocation();
+  const mainRef = useRef<HTMLElement>(null);
+  const lastPath = useRef(location.pathname);
+
+  // Move focus to the page after navigation so screen readers announce the new screen.
+  // Comparing paths (not a first-render flag) keeps this correct when effects re-run.
+  useEffect(() => {
+    setMenuOpen(false);
+    if (lastPath.current === location.pathname) return;
+    lastPath.current = location.pathname;
+    mainRef.current?.focus({ preventScroll: true });
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setMenuOpen(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [menuOpen]);
 
   useEffect(() => {
     api("/calendar/today/").then(setCalendar).catch(() => {});
@@ -56,15 +79,18 @@ export default function Layout() {
 
   return (
     <div className="shell">
-      <aside className={`sidebar ${menuOpen ? "open" : ""}`}>
+      <a className="skip-link" href="#main">Skip to main content</a>
+      {menuOpen && <div className="scrim" onClick={() => setMenuOpen(false)} aria-hidden="true" />}
+      <aside id="sidebar" className={`sidebar ${menuOpen ? "open" : ""}`} aria-label="Main navigation">
         <div className="brand">
           <BrandMark className="brand-small" />
           <small>Hotel Management</small>
         </div>
-        <nav onClick={() => setMenuOpen(false)}>
+        <nav>
           {items.map((n) => (
             <NavLink key={n.to} to={n.to} end={n.to === "/"}>
-              {t(n.label)}
+              <n.icon size={19} strokeWidth={1.75} aria-hidden="true" />
+              <span>{t(n.label)}</span>
             </NavLink>
           ))}
         </nav>
@@ -78,19 +104,23 @@ export default function Layout() {
             <button className={lang === "am" ? "active" : ""} onClick={() => setLang("am")}>አማ</button>
           </div>
           <button
-            className="ghost"
+            className="ghost signout"
             onClick={() => {
               logout();
               navigate("/login");
             }}
           >
+            <LogOut size={18} strokeWidth={1.75} aria-hidden="true" />
             {t("Log out")}
           </button>
         </div>
       </aside>
       <div className="main">
         <header className="topbar">
-          <button className="ghost menu-btn" onClick={() => setMenuOpen(!menuOpen)} aria-label="Menu">☰</button>
+          <button className="icon-btn menu-btn" onClick={() => setMenuOpen(!menuOpen)} aria-label={menuOpen ? "Close menu" : "Open menu"}
+            aria-expanded={menuOpen} aria-controls="sidebar">
+            {menuOpen ? <X size={22} aria-hidden="true" /> : <Menu size={22} aria-hidden="true" />}
+          </button>
           <div className="dates">
             {businessDate && (
               <span>
@@ -100,11 +130,12 @@ export default function Layout() {
             {calendar && <span className="eth">{lang === "am" ? calendar.ethiopian_am : calendar.ethiopian}</span>}
           </div>
           <span className={`net ${online ? "on" : "off"}`}>
+            {online ? <Wifi size={14} aria-hidden="true" /> : <WifiOff size={14} aria-hidden="true" />}
             {online ? t("Online") : t("Offline")}
             {pending > 0 && ` · ${pending} queued`}
           </span>
         </header>
-        <main className="content">
+        <main className="content" id="main" ref={mainRef} tabIndex={-1}>
           <Watermark />
           <Outlet />
         </main>

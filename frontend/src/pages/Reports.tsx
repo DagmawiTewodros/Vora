@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { ErrorBox, Stat } from "../components/ui";
+import { BedDouble, Coins, Percent, Receipt, TrendingUp } from "lucide-react";
+import { ErrorBox, SkeletonBlock, Stat } from "../components/ui";
 import { addDays, birr, money, shortDate } from "../lib/format";
 import { useApi } from "../lib/hooks";
 import { useI18n } from "../lib/i18n";
@@ -31,14 +32,15 @@ export default function Reports() {
         <label>To <input type="date" value={end} onChange={(e) => setRange({ start, end: e.target.value })} /></label>
       </div>
       <ErrorBox error={report.error} />
+      {!r && !report.error && <section className="stats"><SkeletonBlock count={5} height={110} /></section>}
       {r && (
         <>
           <section className="stats">
-            <Stat title="Occupancy" value={`${r.totals.occupancy_pct}%`} hint={`${r.totals.rooms_sold} room nights of ${r.totals.rooms_available}`} />
-            <Stat title="ADR" value={birr(r.totals.adr)} hint="Average daily rate (net)" />
-            <Stat title="RevPAR" value={birr(r.totals.revpar)} hint="Room revenue per available room" />
-            <Stat title="Room revenue" value={birr(r.totals.room_revenue)} />
-            <Stat title="All revenue (net)" value={birr(r.totals.total_revenue_net)} />
+            <Stat icon={<Percent size={16} />} title="Occupancy" value={`${r.totals.occupancy_pct}%`} hint={`${r.totals.rooms_sold} room nights of ${r.totals.rooms_available}`} />
+            <Stat icon={<Coins size={16} />} title="ADR" value={birr(r.totals.adr)} hint="Average daily rate (net)" />
+            <Stat icon={<TrendingUp size={16} />} title="RevPAR" value={birr(r.totals.revpar)} hint="Room revenue per available room" />
+            <Stat icon={<BedDouble size={16} />} title="Room revenue" value={birr(r.totals.room_revenue)} />
+            <Stat icon={<Receipt size={16} />} title="All revenue (net)" value={birr(r.totals.total_revenue_net)} />
           </section>
           <section className="card">
             <h2>By day</h2>

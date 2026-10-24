@@ -4,6 +4,7 @@ import { BrowserRouter } from "react-router-dom";
 import App from "./App";
 import { currentUser } from "./lib/api";
 import { AuthProvider } from "./lib/auth";
+import { FeedbackProvider } from "./lib/feedback";
 import { I18nProvider } from "./lib/i18n";
 import "@fontsource/cormorant-garamond/latin-500.css";
 import "@fontsource/cormorant-garamond/latin-600.css";
@@ -19,7 +20,9 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     <BrowserRouter>
       <AuthProvider>
         <I18nProvider initial={currentUser()?.preferred_language ?? "en"}>
-          <App />
+          <FeedbackProvider>
+            <App />
+          </FeedbackProvider>
         </I18nProvider>
       </AuthProvider>
     </BrowserRouter>

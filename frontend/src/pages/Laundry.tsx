@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Badge, ErrorBox, Field, Modal } from "../components/ui";
+import { Plus, Shirt } from "lucide-react";
+import { Badge, Empty, ErrorBox, Field, Modal, SkeletonRows } from "../components/ui";
 import { post } from "../lib/api";
 import { birr, dateTime } from "../lib/format";
 import { useAction, useApi } from "../lib/hooks";
@@ -31,6 +32,7 @@ export default function Laundry() {
         <table>
           <thead><tr><th>Ticket</th><th>Room</th><th>Items</th><th>Total</th><th>Status</th><th /></tr></thead>
           <tbody>
+            {!tickets.data && <SkeletonRows cols={6} />}
             {(tickets.data ?? []).map((tk) => (
               <tr key={tk.id}>
                 <td>{tk.number}{tk.express && <span className="badge badge-vip">Express</span>}<small className="block muted">{dateTime(tk.received_at)}</small></td>
@@ -46,6 +48,11 @@ export default function Laundry() {
             ))}
           </tbody>
         </table>
+        {tickets.data?.length === 0 && (
+          <Empty icon={<Shirt size={28} />} action={<button className="primary" onClick={() => setCreating(true)}><Plus size={18} aria-hidden="true" />New ticket</button>}>
+            No laundry tickets{status ? " with this status" : ""}.
+          </Empty>
+        )}
       </div>
       {creating && <NewTicket onClose={() => setCreating(false)} onDone={() => { setCreating(false); tickets.reload(); }} />}
     </div>

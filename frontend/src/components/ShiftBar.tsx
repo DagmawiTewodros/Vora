@@ -2,6 +2,7 @@ import { useState } from "react";
 import { post } from "../lib/api";
 import { birr, dateTime } from "../lib/format";
 import { useAction, useApi } from "../lib/hooks";
+import { useAsk, useToast } from "../lib/feedback";
 import { ErrorBox, Field, Modal } from "./ui";
 
 /** Shows the cashier's open shift; opening and closing (with cash count) happen here. */
@@ -11,11 +12,17 @@ export default function ShiftBar() {
   const [counted, setCounted] = useState({ etb: "", usd: "", notes: "" });
   const [summary, setSummary] = useState<any | null>(null);
   const action = useAction();
+  const ask = useAsk();
+  const toast = useToast();
 
-  const open = () => {
-    const float = window.prompt("Opening cash float (ETB)", "0");
+  const open = async () => {
+    const float = await ask({
+      title: "Open cashier shift", confirmLabel: "Open shift",
+      message: "Count the cash in the drawer before taking payments.",
+      input: { label: "Opening cash float (ETB)", type: "number", initial: "0", required: true },
+    });
     if (float === null) return;
-    action.run(async () => { await post("/shifts/", { opening_float: float || "0" }); shift.reload(); });
+    action.run(async () => { await post("/shifts/", { opening_float: float || "0" }); shift.reload(); toast("Shift opened"); });
   };
 
   return (

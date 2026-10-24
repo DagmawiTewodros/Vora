@@ -1,9 +1,11 @@
 import { useState } from "react";
 import ReservationForm from "../components/ReservationForm";
-import { Badge, Empty, ErrorBox, Modal } from "../components/ui";
+import { CalendarPlus, CalendarX2 } from "lucide-react";
+import { Badge, Empty, ErrorBox, Modal, SkeletonRows } from "../components/ui";
 import { post } from "../lib/api";
 import { addDays, money, shortDate } from "../lib/format";
 import { useAction, useApi } from "../lib/hooks";
+import { useAsk, useToast } from "../lib/feedback";
 import { useI18n } from "../lib/i18n";
 
 export default function Reservations() {
@@ -20,13 +22,22 @@ export default function Reservations() {
   const [selected, setSelected] = useState<any | null>(null);
   const action = useAction();
 
-  const cancel = (r: any, noShow = false) => {
-    const reason = window.prompt(noShow ? "Mark as no-show? Reason:" : "Cancel reservation? Reason:");
+  const ask = useAsk();
+  const toast = useToast();
+  const cancel = async (r: any, noShow = false) => {
+    const reason = await ask({
+      title: noShow ? `Mark ${r.code} as no-show?` : `Cancel reservation ${r.code}?`,
+      message: `${r.guest_detail.full_name} · ${shortDate(r.check_in)} → ${shortDate(r.check_out)}. The room goes back on sale.`,
+      input: { label: "Reason", required: true, initial: noShow ? "Did not arrive" : "" },
+      confirmLabel: noShow ? "Mark no-show" : "Cancel reservation",
+      danger: true,
+    });
     if (reason === null) return;
     action.run(async () => {
       await post(`/reservations/${r.id}/${noShow ? "no-show" : "cancel"}/`, { reason });
       setSelected(null);
       list.reload();
+      toast(noShow ? `${r.code} marked as no-show` : `${r.code} cancelled`);
     });
   };
 
@@ -53,12 +64,15 @@ export default function Reservations() {
       <ErrorBox error={list.error || action.error} />
       <div className="card">
         {list.data?.length === 0 ? (
-          <Empty>No reservations in the next 30 days match.</Empty>
+          <Empty icon={<CalendarX2 size={28} />} action={<button className="primary" onClick={() => setCreating(true)}><CalendarPlus size={18} aria-hidden="true" />{t("New reservation")}</button>}>
+            No reservations in the next 30 days match these filters.
+          </Empty>
         ) : (
           <div className="table-wrap">
             <table>
               <thead><tr><th>Code</th><th>Guest</th><th>Room</th><th>Dates</th><th>Rate</th><th>Source</th><th>Status</th></tr></thead>
               <tbody>
+                {!list.data && <SkeletonRows cols={7} />}
                 {(list.data ?? []).map((r) => (
                   <tr key={r.id} className="clickable" onClick={() => setSelected(r)}>
                     <td>{r.code}</td>

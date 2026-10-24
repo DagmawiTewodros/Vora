@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import ReservationForm from "../components/ReservationForm";
-import { Badge, Empty, ErrorBox, Field, Modal } from "../components/ui";
+import { HkStatus } from "./Rooms";
+import { BedDouble, PlaneLanding, PlaneTakeoff, UserPlus } from "lucide-react";
+import { Badge, Busy, Empty, ErrorBox, Field, Modal, SkeletonRows } from "../components/ui";
 import { patch, post } from "../lib/api";
 import { birr, shortDate } from "../lib/format";
+import { useToast } from "../lib/feedback";
 import { useAction, useApi } from "../lib/hooks";
 import { useI18n } from "../lib/i18n";
 
@@ -11,6 +14,7 @@ type Tab = "arrivals" | "in_house" | "departures";
 
 export default function FrontDesk() {
   const { t } = useI18n();
+  const toast = useToast();
   const board = useApi("/front-desk/");
   const [tab, setTab] = useState<Tab>("arrivals");
   const [checkIn, setCheckIn] = useState<any | null>(null);
@@ -19,7 +23,8 @@ export default function FrontDesk() {
   const [walkIn, setWalkIn] = useState(false);
 
   const rows: any[] = board.data?.[tab] ?? [];
-  const done = () => {
+  const done = (message?: string) => {
+    if (message) toast(message);
     setCheckIn(null);
     setCheckOut(null);
     setMove(null);
@@ -44,9 +49,15 @@ export default function FrontDesk() {
           </button>
         ))}
       </div>
-      <div className="card">
-        {rows.length === 0 ? (
-          <Empty>Nothing here right now.</Empty>
+      <div className="card" aria-busy={!board.data}>
+        <Busy busy={!board.data && !board.error} />
+        {!board.data ? (
+          <table><tbody><SkeletonRows cols={7} rows={3} /></tbody></table>
+        ) : rows.length === 0 ? (
+          <Empty icon={tab === "arrivals" ? <PlaneLanding size={28} /> : tab === "departures" ? <PlaneTakeoff size={28} /> : <BedDouble size={28} />}
+            action={tab === "arrivals" ? <button className="primary" onClick={() => setWalkIn(true)}><UserPlus size={18} aria-hidden="true" />Walk-in guest</button> : undefined}>
+            {tab === "arrivals" ? "No more arrivals today." : tab === "departures" ? "No departures left today." : "No guests are checked in."}
+          </Empty>
         ) : (
           <div className="table-wrap">
             <table>
@@ -89,7 +100,7 @@ export default function FrontDesk() {
       {move && <MoveModal reservation={move} onClose={() => setMove(null)} onDone={done} />}
       {walkIn && (
         <Modal title="Walk-in guest" onClose={() => setWalkIn(false)} wide>
-          <ReservationForm start={board.data?.business_date} source="walk_in" onDone={done} />
+          <ReservationForm start={board.data?.business_date} source="walk_in" onDone={(r) => done(`Booked ${r.code} – ready to check in`)} />
         </Modal>
       )}
     </div>
@@ -102,7 +113,7 @@ export function FolioLink({ reservation }: { reservation: number }) {
   return folio ? <Link className="button" to={`/folios/${folio.id}`}>Folio</Link> : null;
 }
 
-function CheckInModal({ reservation, onClose, onDone }: { reservation: any; onClose: () => void; onDone: () => void }) {
+function CheckInModal({ reservation, onClose, onDone }: { reservation: any; onClose: () => void; onDone: (message?: string) => void }) {
   const rooms = useApi<any[]>(`/reservations/${reservation.id}/free-rooms/`);
   const [room, setRoom] = useState<number | null>(reservation.room);
   const [keys, setKeys] = useState(1);
@@ -119,8 +130,8 @@ function CheckInModal({ reservation, onClose, onDone }: { reservation: any; onCl
           visa_number: guest.visa_number, visa_expiry: guest.visa_expiry || null, phone: guest.phone,
         });
       }
-      await post(`/reservations/${reservation.id}/check-in/`, { room, key_cards: keys });
-      onDone();
+      const res = await post(`/reservations/${reservation.id}/check-in/`, { room, key_cards: keys });
+      onDone(`${reservation.guest_detail.full_name} checked in to room ${res.room_number}`);
     });
 
   const set = (k: string) => (e: any) => setGuest({ ...guest, [k]: e.target.value });
@@ -145,13 +156,14 @@ function CheckInModal({ reservation, onClose, onDone }: { reservation: any; onCl
       <div className="room-picker">
         {(rooms.data ?? []).map((r) => (
           <button key={r.id} type="button" className={`room-chip hk-${r.housekeeping_status} ${room === r.id ? "selected" : ""}`}
-            onClick={() => setRoom(r.id)} title={r.housekeeping_status}>
-            {r.number}
+            onClick={() => setRoom(r.id)} aria-pressed={room === r.id} aria-label={`Room ${r.number}, ${r.housekeeping_status}`}>
+            <span>{r.number}</span>
+            <HkStatus status={r.housekeeping_status} />
           </button>
         ))}
         {rooms.data?.length === 0 && <Empty>No free rooms of this type.</Empty>}
       </div>
-      <p className="muted">Green = clean / inspected, red = still dirty (cannot check in until housekeeping finishes).</p>
+      <p className="muted">Rooms marked <strong>Dirty</strong> can't be used until housekeeping finishes cleaning.</p>
       <Field label="Key cards"><input type="number" min={0} max={5} value={keys} onChange={(e) => setKeys(+e.target.value)} /></Field>
       <ErrorBox error={error} />
       <div className="modal-actions">
@@ -162,7 +174,7 @@ function CheckInModal({ reservation, onClose, onDone }: { reservation: any; onCl
   );
 }
 
-function CheckOutModal({ reservation, onClose, onDone }: { reservation: any; onClose: () => void; onDone: () => void }) {
+function CheckOutModal({ reservation, onClose, onDone }: { reservation: any; onClose: () => void; onDone: (message?: string) => void }) {
   const [ready, setReady] = useState<any | null>(null);
   const { busy, error, run } = useAction();
 
@@ -188,7 +200,7 @@ function CheckOutModal({ reservation, onClose, onDone }: { reservation: any; onC
         <button
           className="primary"
           disabled={busy || !ready || balance !== 0}
-          onClick={() => run(async () => { await post(`/reservations/${reservation.id}/check-out/`); onDone(); })}
+          onClick={() => run(async () => { await post(`/reservations/${reservation.id}/check-out/`); onDone(`${reservation.guest_detail.full_name} checked out`); })}
         >
           Check out
         </button>
@@ -197,7 +209,7 @@ function CheckOutModal({ reservation, onClose, onDone }: { reservation: any; onC
   );
 }
 
-function MoveModal({ reservation, onClose, onDone }: { reservation: any; onClose: () => void; onDone: () => void }) {
+function MoveModal({ reservation, onClose, onDone }: { reservation: any; onClose: () => void; onDone: (message?: string) => void }) {
   const types = useApi<any[]>("/room-types/");
   const [roomType, setRoomType] = useState<number>(reservation.room_type);
   const rooms = useApi<any[]>(`/reservations/${reservation.id}/free-rooms/?room_type=${roomType}`, [roomType]);
@@ -213,14 +225,18 @@ function MoveModal({ reservation, onClose, onDone }: { reservation: any; onClose
       </Field>
       <div className="room-picker">
         {(rooms.data ?? []).filter((r) => r.id !== reservation.room && r.status === "vacant").map((r) => (
-          <button key={r.id} className={`room-chip hk-${r.housekeeping_status} ${room === r.id ? "selected" : ""}`} onClick={() => setRoom(r.id)}>{r.number}</button>
+          <button key={r.id} className={`room-chip hk-${r.housekeeping_status} ${room === r.id ? "selected" : ""}`} onClick={() => setRoom(r.id)}
+            aria-pressed={room === r.id} aria-label={`Room ${r.number}, ${r.housekeeping_status}`}>
+            <span>{r.number}</span>
+            <HkStatus status={r.housekeeping_status} />
+          </button>
         ))}
       </div>
       <Field label="Reason"><input value={reason} onChange={(e) => setReason(e.target.value)} /></Field>
       <ErrorBox error={error} />
       <div className="modal-actions">
         <button onClick={onClose}>Cancel</button>
-        <button className="primary" disabled={busy || !room} onClick={() => run(async () => { await post(`/reservations/${reservation.id}/move-room/`, { room, reason }); onDone(); })}>Move</button>
+        <button className="primary" disabled={busy || !room} onClick={() => run(async () => { const res = await post(`/reservations/${reservation.id}/move-room/`, { room, reason }); onDone(`Moved to room ${res.room_number}`); })}>Move</button>
       </div>
     </Modal>
   );

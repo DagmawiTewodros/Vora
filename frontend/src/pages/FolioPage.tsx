@@ -6,6 +6,7 @@ import { api, patch, post } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { birr, dateTime, money, shortDate } from "../lib/format";
 import { useAction, useApi } from "../lib/hooks";
+import { useAsk, useToast } from "../lib/feedback";
 
 const OUTLETS = ["restaurant", "bar", "cafe", "room_service", "minibar", "laundry", "other"];
 const METHODS = [
@@ -21,10 +22,12 @@ export default function FolioPage() {
   const [modal, setModal] = useState<"charge" | "payment" | "transfer" | "billto" | null>(null);
   const [selected, setSelected] = useState<number[]>([]);
   const action = useAction();
+  const ask = useAsk();
+  const toast = useToast();
   const f = folio.data;
   if (!f) return <div className="page"><ErrorBox error={folio.error} /></div>;
 
-  const done = (data?: any) => { if (data) folio.setData(data); else folio.reload(); setModal(null); setSelected([]); };
+  const done = (data?: any, message?: string) => { if (data) folio.setData(data); else folio.reload(); setModal(null); setSelected([]); if (message) toast(message); };
   const open = f.status === "open";
   const usdRate = Number(rate.data?.usd_to_etb || 0);
 
@@ -75,7 +78,10 @@ export default function FolioPage() {
                   <td>{birr(c.vat)}</td>
                   <td>{birr(c.total)}</td>
                   <td>{open && !c.is_void && (user?.is_manager || user?.role === "cashier") && (
-                    <button className="ghost" onClick={() => { const reason = window.prompt("Reason for void"); if (reason) action.run(async () => { await post(`/charges/${c.id}/void/`, { reason }); folio.reload(); }); }}>Void</button>
+                    <button className="ghost danger-text" onClick={async () => {
+                      const reason = await ask({ title: `Void "${c.description}"?`, message: `${birr(c.total)} will be removed from the bill. The void is kept in the audit log.`, input: { label: "Reason", required: true }, confirmLabel: "Void charge", danger: true });
+                      if (reason) action.run(async () => { await post(`/charges/${c.id}/void/`, { reason }); folio.reload(); toast("Charge voided"); });
+                    }}>Void</button>
                   )}</td>
                 </tr>
               ))}
@@ -104,7 +110,7 @@ export default function FolioPage() {
           </table>
         </div>
         {open && Number(f.totals.balance) === 0 && !f.reservation && (
-          <button className="primary" onClick={() => action.run(async () => folio.setData(await post(`/folios/${f.id}/close/`)))}>Close &amp; issue invoice</button>
+          <button className="primary" onClick={() => action.run(async () => { const closed = await post(`/folios/${f.id}/close/`); folio.setData(closed); toast(`Invoice ${closed.invoice_number} issued`); })}>Close &amp; issue invoice</button>
         )}
       </section>
 
@@ -129,7 +135,7 @@ function ChargeModal({ folio, onClose, onDone }: any) {
         <Field label="Currency"><select value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })}><option>ETB</option><option>USD</option></select></Field>
       </div>
       <ErrorBox error={error} />
-      <div className="modal-actions"><button className="primary" disabled={busy} onClick={() => run(async () => onDone(await post(`/folios/${folio.id}/charges/`, form)))}>Post charge</button></div>
+      <div className="modal-actions"><button className="primary" disabled={busy} onClick={() => run(async () => onDone(await post(`/folios/${folio.id}/charges/`, form), "Charge posted"))}>Post charge</button></div>
     </Modal>
   );
 }
@@ -153,7 +159,7 @@ function PaymentModal({ folio, isManager, onClose, onDone }: any) {
         <Field label="Transaction reference"><input value={form.reference} onChange={(e) => setForm({ ...form, reference: e.target.value })} placeholder="Slip / Telebirr / bank ref." /></Field>
       )}
       <ErrorBox error={error} />
-      <div className="modal-actions"><button className="primary" disabled={busy} onClick={() => run(async () => onDone(await post(`/folios/${folio.id}/payments/`, form)))}>Record payment</button></div>
+      <div className="modal-actions"><button className="primary" disabled={busy} onClick={() => run(async () => onDone(await post(`/folios/${folio.id}/payments/`, form), `${form.kind === "refund" ? "Refund" : "Payment"} of ${form.amount} ${form.currency} recorded`))}>Record payment</button></div>
     </Modal>
   );
 }
@@ -166,7 +172,7 @@ function TransferModal({ folio, charges, onClose, onDone }: any) {
   const submit = () => run(async () => {
     let to = target;
     if (!to) to = (await post("/folios/split/", { reservation: folio.reservation, ...newName })).id;
-    onDone(await post(`/folios/${folio.id}/transfer/`, { to_folio: to, charges }));
+    onDone(await post(`/folios/${folio.id}/transfer/`, { to_folio: to, charges }), `${charges.length} charge(s) moved`);
   });
   return (
     <Modal title="Split bill" onClose={onClose}>

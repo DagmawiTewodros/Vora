@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Badge, ErrorBox, Field, Modal } from "../components/ui";
+import { Badge, ErrorBox, Field, Modal, SkeletonRows } from "../components/ui";
 import { post } from "../lib/api";
 import { birr, shortDate } from "../lib/format";
 import { useAction, useApi } from "../lib/hooks";
@@ -35,6 +35,7 @@ export default function Inventory() {
             <table>
               <thead><tr><th>Item</th><th>Location</th><th>Stock</th><th>Reorder at</th><th>Unit cost</th><th /></tr></thead>
               <tbody>
+                {!items.data && <SkeletonRows cols={6} />}
                 {(items.data ?? []).map((i) => (
                   <tr key={i.id} className={i.needs_reorder ? "low" : ""}>
                     <td>{i.name}<small className="block muted">{i.sku}</small></td>

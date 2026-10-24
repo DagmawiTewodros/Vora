@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import ShiftBar from "../components/ShiftBar";
-import { Badge, ErrorBox } from "../components/ui";
+import { Receipt } from "lucide-react";
+import { Badge, Empty, ErrorBox, SkeletonRows } from "../components/ui";
 import { post } from "../lib/api";
 import { birr, dateTime } from "../lib/format";
 import { useAction, useApi } from "../lib/hooks";
@@ -35,6 +36,7 @@ export default function Folios() {
         <table>
           <thead><tr><th>Folio</th><th>Name</th><th>Room</th><th>Total</th><th>{t("Balance")}</th><th>Status</th><th>Invoice</th></tr></thead>
           <tbody>
+            {!list.data && <SkeletonRows cols={7} />}
             {(list.data ?? []).map((f) => (
               <tr key={f.id}>
                 <td><Link to={`/folios/${f.id}`}>{f.number}</Link><small className="block muted">{dateTime(f.opened_at)}</small></td>
@@ -48,6 +50,7 @@ export default function Folios() {
             ))}
           </tbody>
         </table>
+        {list.data?.length === 0 && <Empty icon={<Receipt size={28} />}>{status === "open" ? "No open bills." : "No bills match."}</Empty>}
       </div>
     </div>
   );
